@@ -1,0 +1,332 @@
+---------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\yjong\OneDrive\Documents\YAJ'S\proposal\TZ growth analysis\log/analysis.log
+  log type:  text
+ opened on:  23 Apr 2026, 07:14:19
+
+. 
+. *******************************************************
+. * Install required packages (only run once)
+. *******************************************************
+. cap which outreg2
+
+. if _rc ssc install outreg2
+
+. 
+. cap which estout
+
+. if _rc ssc install estout
+
+. 
+. *******************************************************
+. * Import Data
+. *******************************************************
+. 
+. import excel "C:\Users\yjong\OneDrive\Documents\YAJ'S\proposal\gdp_inf_and_gexp_tz", firstrow cle
+> ar
+(4 vars, 25 obs)
+
+. 
+. * Inspect data
+. describe
+
+Contains data
+ Observations:            25                  
+    Variables:             4                  
+---------------------------------------------------------------------------------------------------
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+---------------------------------------------------------------------------------------------------
+year            int     %10.0g                year
+GDP             double  %10.0g                GDP
+Gexp            double  %10.0g                Gexp
+Inf             double  %10.0g                Inf
+---------------------------------------------------------------------------------------------------
+Sorted by: 
+     Note: Dataset has changed since last saved.
+
+. summarize
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        year |         25        2012    7.359801       2000       2024
+         GDP |         25     5.92599    1.284201   1.991965   7.672155
+        Gexp |         25    9.716052    1.589784   7.699584   13.10926
+         Inf |         25    6.331317    3.236436   3.056947   16.00109
+
+. 
+. *******************************************************
+. * Clean variable names
+. *******************************************************
+. 
+. rename GDP gdp
+
+. rename Gexp gexp
+
+. rename Inf inf
+
+. rename year year
+  (all newnames==oldnames)
+
+. 
+. * Check again
+. summarize
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+        year |         25        2012    7.359801       2000       2024
+         gdp |         25     5.92599    1.284201   1.991965   7.672155
+        gexp |         25    9.716052    1.589784   7.699584   13.10926
+         inf |         25    6.331317    3.236436   3.056947   16.00109
+
+. 
+. *******************************************************
+. * Data cleaning
+. *******************************************************
+. 
+. * Sort data
+. sort year
+
+. 
+. * Check missing values
+. misstable summarize
+(variables nonmissing or string)
+
+. 
+. * Drop missing (if any)
+. drop if missing(gdp, gexp, inf)
+(0 observations deleted)
+
+. 
+. * Set time series structure
+. tsset year
+
+Time variable: year, 2000 to 2024
+        Delta: 1 unit
+
+. 
+. *******************************************************
+. * Descriptive statistics
+. *******************************************************
+. 
+. summarize gdp gexp inf
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         gdp |         25     5.92599    1.284201   1.991965   7.672155
+        gexp |         25    9.716052    1.589784   7.699584   13.10926
+         inf |         25    6.331317    3.236436   3.056947   16.00109
+
+. 
+. * Correlation matrix
+. pwcorr gdp gexp inf, sig
+
+             |      gdp     gexp      inf
+-------------+---------------------------
+         gdp |   1.0000 
+             |
+             |
+        gexp |   0.4651   1.0000 
+             |   0.0191
+             |
+         inf |   0.1061   0.4846   1.0000 
+             |   0.6138   0.0141
+             |
+
+. 
+. *******************************************************
+. * Graphs
+. *******************************************************
+. 
+. tsline gdp, title("GDP Growth (Tanzania)")
+
+. tsline gexp, title("Government Expenditure (% GDP)")
+
+. tsline inf, title("Inflation Rate (%)")
+
+. 
+. tsline gdp gexp inf, ///
+> legend(label(1 "GDP Growth") ///
+>        label(2 "Gov Expenditure") ///
+>        label(3 "Inflation")) ///
+> title("Macroeconomic Trends in Tanzania")
+
+. 
+. graph export "output/trends.png", replace
+(file output/trends.png not found)
+file output/trends.png saved as PNG format
+
+. 
+. *******************************************************
+. * Baseline OLS
+. *******************************************************
+. reg gdp gexp inf
+
+      Source |       SS           df       MS      Number of obs   =        25
+-------------+----------------------------------   F(2, 22)        =      3.38
+       Model |  9.29937401         2  4.64968701   Prob > F        =    0.0526
+    Residual |  30.2807428        22   1.3763974   R-squared       =    0.2350
+-------------+----------------------------------   Adj R-squared   =    0.1654
+       Total |  39.5801168        24  1.64917153   Root MSE        =    1.1732
+
+------------------------------------------------------------------------------
+         gdp | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        gexp |   .4367637   .1722066     2.54   0.019      .079629    .7938984
+         inf |  -.0618739   .0845904    -0.73   0.472    -.2373036    .1135558
+       _cons |   2.074115   1.507612     1.38   0.183    -1.052482    5.200712
+------------------------------------------------------------------------------
+
+. eststo model1
+
+. 
+. *******************************************************
+. * Heteroskedasticity test
+. *******************************************************
+. 
+. estat hettest
+
+Breusch–Pagan/Cook–Weisberg test for heteroskedasticity 
+Assumption: Normal error terms
+Variable: Fitted values of gdp
+
+H0: Constant variance
+
+    chi2(1) =   3.64
+Prob > chi2 = 0.0564
+
+. 
+. *******************************************************
+. * Autocorrelation
+. *******************************************************
+. 
+. estat bgodfrey
+
+Breusch–Godfrey LM test for autocorrelation
+---------------------------------------------------------------------------
+    lags(p)  |          chi2               df                 Prob > chi2
+-------------+-------------------------------------------------------------
+       1     |          0.920               1                   0.3376
+---------------------------------------------------------------------------
+                        H0: no serial correlation
+
+. 
+. * Durbin-Watson
+. estat dwatson
+
+Durbin–Watson d-statistic(  3,    25) =  1.608399
+
+. 
+. *******************************************************
+. * Robust Model
+. *******************************************************
+. reg gdp gexp inf, robust
+
+Linear regression                               Number of obs     =         25
+                                                F(2, 22)          =       3.66
+                                                Prob > F          =     0.0425
+                                                R-squared         =     0.2350
+                                                Root MSE          =     1.1732
+
+------------------------------------------------------------------------------
+             |               Robust
+         gdp | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        gexp |   .4367637   .1634189     2.67   0.014     .0978537    .7756736
+         inf |  -.0618739   .1030127    -0.60   0.554    -.2755092    .1517614
+       _cons |   2.074115   1.610353     1.29   0.211    -1.265554    5.413784
+------------------------------------------------------------------------------
+
+. eststo model2
+
+. 
+. *******************************************************
+. * Lag Model
+. *******************************************************
+. tsset year
+
+Time variable: year, 2000 to 2024
+        Delta: 1 unit
+
+. 
+. reg gdp L.gexp L.inf, robust
+
+Linear regression                               Number of obs     =         24
+                                                F(2, 21)          =       1.99
+                                                Prob > F          =     0.1615
+                                                R-squared         =     0.1879
+                                                Root MSE          =     1.2046
+
+------------------------------------------------------------------------------
+             |               Robust
+         gdp | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        gexp |
+         L1. |   .3635427   .1850581     1.96   0.063    -.0213066     .748392
+             |
+         inf |
+         L1. |  -.0257161   .0772875    -0.33   0.743    -.1864443    .1350121
+             |
+       _cons |    2.61064   1.796019     1.45   0.161    -1.124386    6.345667
+------------------------------------------------------------------------------
+
+. eststo model3
+
+. 
+. *******************************************************
+. * Export comparison
+. *******************************************************
+. cap mkdir "output"
+
+. 
+. esttab model1 model2 model3 ///
+> using "final_results.txt", replace ///
+> se star(* 0.10 ** 0.05 *** 0.01) ///
+> mtitles("OLS" "Robust" "Lag") ///
+> title("Impact of Government Spending on GDP Growth")
+(output written to final_results.txt)
+
+. 
+. *******************************************************
+. * Multicollinearity
+. *******************************************************
+. 
+. vif
+
+    Variable |       VIF       1/VIF  
+-------------+----------------------
+        gexp |
+         L1. |      1.30    0.767750
+         inf |
+         L1. |      1.30    0.767750
+-------------+----------------------
+    Mean VIF |      1.30
+
+. 
+. *******************************************************
+. * Normality test
+. *******************************************************
+. 
+. predict resid, residuals
+(1 missing value generated)
+
+. 
+. sktest resid
+
+Skewness and kurtosis tests for normality
+                                                         ----- Joint test -----
+    Variable |       Obs   Pr(skewness)   Pr(kurtosis)   Adj chi2(2)  Prob>chi2
+-------------+-----------------------------------------------------------------
+       resid |        24         0.0343         0.1081          6.43     0.0402
+
+. 
+. *******************************************************
+. * closing log file
+. *******************************************************
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\yjong\OneDrive\Documents\YAJ'S\proposal\TZ growth analysis\log/analysis.log
+  log type:  text
+ closed on:  23 Apr 2026, 07:14:25
+---------------------------------------------------------------------------------------------------
